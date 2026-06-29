@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DropBeam WiFi - Instant Local Sharing</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Share text and files instantly across devices on the same local network/Wi-Fi. No setup, no registration, secure and temporary.">
+  <meta name="keywords" content="file sharing, local sharing, wifi transfer, airforshare alternative, dropbeam, instant file transfer, clipboard sync">
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#0d0e15">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Socket.io Client -->
+  <script src="/socket.io/socket.io.js"></script>
+  
+  <!-- QR Code Library -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Animated Background Elements -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-glow bg-glow-3"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header glass">
+      <div class="header-left">
+        <div class="logo">
+          <i data-lucide="radio" class="logo-icon animate-pulse"></i>
+          <h1>DropBeam <span>WiFi</span></h1>
+        </div>
+        <div class="status-badge" id="connection-status">
+          <span class="status-indicator offline"></span>
+          <span class="status-text">Connecting...</span>
+        </div>
+        
+        <!-- Active Room display widget -->
+        <div class="room-indicator glass-dark" id="active-room-display">
+          <i data-lucide="hash" class="room-hash-icon"></i>
+          <span class="room-name" id="current-room-name">public</span>
+          <button class="btn-room-switch" id="switch-room-trigger" title="Change Room">
+            <i data-lucide="git-branch"></i>
+          </button>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <!-- Local IP Sharing Widget -->
+        <div class="sharing-widget glass-dark" id="url-widget">
+          <span class="widget-label">Wi-Fi Share Link:</span>
+          <span class="widget-url" id="server-url">Detecting URL...</span>
+          <button class="btn-icon" id="copy-url-btn" title="Copy URL" disabled>
+            <i data-lucide="copy"></i>
+          </button>
+        </div>
+        
+        <button class="btn btn-primary" id="open-qr-btn" disabled>
+          <i data-lucide="qr-code"></i>
+          <span>Scan to Connect</span>
+        </button>
+
+        <button class="btn-icon" id="theme-toggle-btn" title="Toggle Theme">
+          <i data-lucide="sun"></i>
+        </button>
+
+        <button class="btn-icon btn-mute" id="mute-toggle-btn" title="Toggle Sound">
+          <i data-lucide="volume-2"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Connected Devices Panel -->
+    <section class="devices-section glass">
+      <div class="section-title">
+        <i data-lucide="smartphone"></i>
+        <h2>Active Devices on this Room</h2>
+        <span class="badge" id="device-count">0</span>
+      </div>
+      <div class="devices-list" id="devices-container">
+        <div class="device-card-skeleton">Detecting local network devices...</div>
+      </div>
+    </section>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Left Column: Live Clipboard & Chat -->
+      <section class="panel-section glass" id="left-panel">
+        <div class="panel-tabs">
+          <button class="tab-btn active" data-tab="clipboard" id="tab-btn-clipboard">
+            <i data-lucide="clipboard"></i>
+            <span>Live Clipboard</span>
+          </button>
+          <button class="tab-btn" data-tab="chat" id="tab-btn-chat">
+            <i data-lucide="message-square"></i>
+            <span>Room Chat</span>
+          </button>
+        </div>
+
+        <!-- Tab 1: Clipboard View -->
+        <div class="tab-content active" id="tab-clipboard">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="clipboard" class="accent-text-blue"></i>
+              <h2>Shared Clipboard</h2>
+            </div>
+            <div class="clipboard-actions">
+              <span class="sync-status" id="clipboard-sync-status">
+                <i data-lucide="refresh-cw" class="spin icon-sm"></i> Syncing...
+              </span>
+              <button class="btn btn-secondary btn-sm" id="copy-clipboard-btn" title="Copy text to clipboard">
+                <i data-lucide="copy"></i>
+                <span>Copy</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" id="save-history-btn" title="Save to text history">
+                <i data-lucide="bookmark"></i>
+                <span>Save</span>
+              </button>
+              <button class="btn btn-outline btn-sm text-danger" id="clear-clipboard-btn" title="Clear text area">
+                <i data-lucide="trash-2"></i>
+                <span>Clear</span>
+              </button>
+            </div>
+          </div>
+          
+          <div class="textarea-wrapper">
+            <textarea id="clipboard-textarea" placeholder="Paste or type text here... It will sync instantly across all devices in this room."></textarea>
+            <div class="textarea-meta">
+              <span id="char-counter">0 characters</span>
+              <span class="keyboard-hint">Changes sync automatically</span>
+            </div>
+          </div>
+
+          <!-- History Subsection -->
+          <div class="history-container">
+            <h3 class="subsection-title">
+              <i data-lucide="history"></i>
+              <span>Text History</span>
+            </h3>
+            <div class="history-list" id="history-items">
+              <p class="empty-state">No saved snippets yet. Click "Save" to keep text clips.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Chat View -->
+        <div class="tab-content" id="tab-chat" style="display: none;">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i data-lucide="message-square" class="accent-text-blue"></i>
+              <h2>Room Chat Board</h2>
+            </div>
+            <span class="info-label">Real-time Local Messenger</span>
+          </div>
+
+          <div class="chat-container">
+            <div class="chat-messages" id="chat-messages-container">
+              <div class="chat-empty-state">
+                <i data-lucide="message-circle" class="chat-empty-icon"></i>
+                <p>No messages in this room yet.</p>
+                <span>Send a quick text, link, or note to others below!</span>
+              </div>
+            </div>
+            <div class="chat-input-bar">
+              <input type="text" id="chat-message-input" placeholder="Type a message to other devices...">
+              <button class="btn btn-primary" id="chat-send-btn">
+                <i data-lucide="send"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Shared Files -->
+      <section class="panel-section glass" id="files-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i data-lucide="folder-open" class="accent-text-purple"></i>
+            <h2>Shared Files</h2>
+          </div>
+          <span class="info-label" id="expiry-notice">Files expire in 15 mins</span>
+        </div>
+
+        <!-- Drag & Drop Zone -->
+        <div class="dropzone" id="file-dropzone">
+          <input type="file" id="file-input" multiple style="display: none;">
+          <div class="dropzone-content">
+            <div class="dropzone-icon-wrapper">
+              <i data-lucide="cloud-upload" class="dropzone-icon"></i>
+            </div>
+            <h3>Drag & Drop Files Here</h3>
+            <p>or click to browse your device (Max 100MB per file)</p>
+          </div>
+        </div>
+
+        <!-- File Upload Options (Self-destruct and Camera Capture) -->
+        <div class="upload-options">
+          <label class="switch-container">
+            <input type="checkbox" id="self-destruct-toggle">
+            <span class="switch-slider"></span>
+            <span class="switch-label">Self-Destruct (Delete after first download)</span>
+          </label>
+          
+          <button class="btn btn-secondary btn-sm" id="camera-capture-btn">
+            <i data-lucide="camera"></i>
+            <span>Camera Photo</span>
+          </button>
+          <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;">
+        </div>
+
+        <!-- Upload Progress Area -->
+        <div class="upload-progress-container" id="upload-progress-container" style="display: none;">
+          <div class="upload-progress-header">
+            <h4>Uploading <span id="upload-count">0</span> file(s)...</h4>
+            <span id="upload-total-progress">0%</span>
+          </div>
+          <div class="upload-progress-list" id="upload-progress-list">
+            <!-- Individual progress lines -->
+          </div>
+        </div>
+
+        <!-- Files Grid/List -->
+        <div class="files-container">
+          <div class="files-header">
+            <h3 class="subsection-title">
+              <i data-lucide="files"></i>
+              <span>Shared Space</span>
+            </h3>
+            <button class="btn btn-link btn-sm" id="refresh-files-btn" title="Refresh files list">
+              <i data-lucide="refresh-cw"></i>
+            </button>
+          </div>
+          <div class="files-grid" id="files-grid">
+            <div class="empty-state">
+              <i data-lucide="file-question" class="empty-icon"></i>
+              <p>No files shared yet</p>
+              <span>Drag files above or scan the QR code with another device to start sharing!</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>⚡ <strong>DropBeam WiFi</strong> is a local Web application. Files are kept temporarily in memory/disk and deleted automatically.</p>
+    </footer>
+  </div>
+
+  <!-- QR Code Modal -->
+  <div class="modal-overlay" id="qr-modal">
+    <div class="modal glass-dark">
+      <div class="modal-header">
+        <h3>Connect Another Device</h3>
+        <button class="btn-close" id="close-qr-btn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Scan this QR code from your phone, tablet, or another laptop on the <strong>same Wi-Fi network</strong> to start sharing instantly.</p>
+        <div class="qr-code-wrapper">
+          <canvas id="qr-canvas"></canvas>
+        </div>
+        <div class="qr-address-box">
+          <code id="qr-url-text">http://192.168.1.XX:3000</code>
+          <button class="btn btn-secondary btn-sm" id="copy-qr-url-btn">
+            <i data-lucide="copy"></i>
+            <span>Copy</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Room Switcher Modal -->
+  <div class="modal-overlay" id="room-modal">
+    <div class="modal glass-dark">
+      <div class="modal-header">
+        <h3>Switch Room Room</h3>
+        <button class="btn-close" id="close-room-btn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Enter a room name to join or create. You can lock your room with a passcode for secure private sharing.</p>
+        <form id="room-switch-form" class="room-form">
+          <div class="form-group">
+            <label for="room-id-input">Room ID:</label>
+            <input type="text" id="room-id-input" placeholder="e.g. public, office, team-share" required>
+          </div>
+          <div class="form-group">
+            <label for="room-passcode-input">Passcode (Optional):</label>
+            <input type="password" id="room-passcode-input" placeholder="Leave empty for open public room">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary" id="room-submit-btn">Join / Create Room</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-Browser Media Player Modal -->
+  <div class="modal-overlay" id="media-modal">
+    <div class="modal media-modal glass-dark">
+      <div class="modal-header">
+        <h3 id="media-title">Media Preview</h3>
+        <button class="btn-close" id="close-media-btn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body media-body">
+        <div id="media-viewer-container">
+          <!-- Dynamic media components (img, video, audio) -->
+        </div>
+        <div class="media-meta">
+          <span id="media-filename">file.mp4</span>
+          <a href="" id="media-download-link" class="btn btn-primary btn-sm" download>
+            <i data-lucide="download"></i>
+            <span>Download File</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Audio elements for sound effects -->
+  <audio id="sound-success" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-84.wav" preload="auto"></audio>
+  <audio id="sound-connect" src="https://assets.mixkit.co/active_storage/sfx/2018/2018-84.wav" preload="auto"></audio>
+
+  <script src="app.js"></script>
+</body>
+</html>
