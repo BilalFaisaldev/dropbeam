@@ -47,12 +47,16 @@ Built with a dark-themed, ultra-fast UI, DropBeam WiFi enables users to drop fil
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-👤 Author
-Developed by Bilal Faisal Arain
+---
 
-Role: Full Stack Web Developer & QA Tester
-Location: Karachi, Pakistan
-Email: bilaifaisalarain@gmail.com
-GitHub: @bilaifaisaldev
-Instagram: @bilal.faisalarain
-*project link [https://dropbeam-gk61.onrender.com/]
+## 👤 Author
+
+**Bilal Faisal Arain** *Full Stack Web Developer & QA Tester*
+
+- **📍 Location:** Karachi, Pakistan
+- **📧 Email:** [bilaifaisalarain@gmail.com](mailto:bilaifaisalarain@gmail.com)
+- **🐙 GitHub:** [@bilaifaisaldev](https://github.com/bilaifaisaldev)
+- **📸 Instagram:** [@bilal.faisalarain](https://instagram.com/bilal.faisalarain)
+
+---
+🚀 **Live Project Link:** [DropBeam WiFi on Render](https://dropbeam-gk61.onrender.com/)
